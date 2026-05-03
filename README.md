@@ -7,6 +7,40 @@
 - Semantic search and simple RAG-style "chat with notes" endpoint.
 - Kanban UI (Todo/Doing/Done) with dark-mode friendly Tailwind styling.
 
+## Complete Anaconda setup (recommended)
+1. Install Anaconda or Miniconda:
+   - Anaconda: https://www.anaconda.com/download
+   - Miniconda: https://docs.conda.io/en/latest/miniconda.html
+2. Open a new terminal and go to the project root:
+   ```bash
+   cd /path/to/notesAI_app
+   ```
+3. Create the environment from `environment.yml`:
+   ```bash
+   conda env create -f environment.yml
+   ```
+4. Activate the environment:
+   ```bash
+   conda activate notesai
+   ```
+5. Verify key tools were installed:
+   ```bash
+   python --version
+   node --version
+   pip --version
+   ```
+6. (If dependencies change later) update the same environment:
+   ```bash
+   conda env update -f environment.yml --prune
+   ```
+7. (Optional) remove and recreate environment cleanly:
+   ```bash
+   conda deactivate
+   conda env remove -n notesai
+   conda env create -f environment.yml
+   conda activate notesai
+   ```
+
 ## Backend
 ```bash
 cd backend
