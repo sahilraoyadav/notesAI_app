@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import String, DateTime, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
@@ -18,3 +18,6 @@ class Note(Base):
     reminder_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    attachments = relationship("Attachment", back_populates="note", cascade="all, delete-orphan")
+
+
