@@ -1,22 +1,13 @@
-from pathlib import Path
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models.note import Note
 from app.schemas.note import NoteCreate, NoteOut, NoteUpdate
-from app.services.ai import (
-    summarize_text,
-    describe_image,
-    transcribe_voice,
-    extract_reminder_from_text,
-    embed_text,
-    local_llm_chat,
-)
+from app.services.ai import summarize_text, extract_reminder_from_text, embed_text, local_llm_chat
 from app.services.vector_store import vector_store
 from app.services.json_store import json_note_store
-from app.core.config import settings
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -66,31 +57,6 @@ async def delete_note(note_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await json_note_store.export_notes(db)
     return {"ok": True}
-
-
-@router.post("/upload/{note_type}", response_model=NoteOut)
-async def upload_note(note_type: str, title: str, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
-    if note_type not in {"image", "voice"}:
-        raise HTTPException(400, "note_type must be image or voice")
-    base = Path(settings.storage_path) / ("images" if note_type == "image" else "voice")
-    base.mkdir(parents=True, exist_ok=True)
-    path = base / file.filename
-    path.write_bytes(await file.read())
-
-    note = Note(title=title, note_type=note_type, media_path=str(path))
-    if note_type == "image":
-        note.ai_description = await describe_image(str(path))
-        note.content = note.ai_description
-    else:
-        note.content = await transcribe_voice(str(path))
-        note.ai_summary = await summarize_text(note.content)
-
-    db.add(note)
-    await db.commit()
-    await db.refresh(note)
-    vector_store.upsert(note.id, note.content or "", await embed_text(note.content or ""))
-    await json_note_store.export_notes(db)
-    return note
 
 
 @router.get('/search', response_model=list[NoteOut])

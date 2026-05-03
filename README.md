@@ -1,45 +1,15 @@
 # NotesAI App (FastAPI + React)
 
 ## Features
-- CRUD for text/image/voice notes (SQLite metadata + local media storage).
-- AI hooks for image description + OCR, voice transcription, note summaries.
-- NLP reminder extraction from natural language note content.
-- Semantic search and simple RAG-style "chat with notes" endpoint.
-- Kanban UI (Todo/Doing/Done) with dark-mode friendly Tailwind styling.
+- CRUD notes with local SQLite.
+- Voice note recording in the browser (MediaRecorder), playback, rename, delete, and attach to notes.
+- Image uploads with preview thumbnails.
+- Optional AI transcription and OCR with graceful local fallback when `OPENAI_API_KEY` is not configured.
 
 ## Complete Anaconda setup (recommended)
-1. Install Anaconda or Miniconda:
-   - Anaconda: https://www.anaconda.com/download
-   - Miniconda: https://docs.conda.io/en/latest/miniconda.html
-2. Open a new terminal and go to the project root:
-   ```bash
-   cd /path/to/notesAI_app
-   ```
-3. Create the environment from `environment.yml`:
-   ```bash
-   conda env create -f environment.yml
-   ```
-4. Activate the environment:
-   ```bash
-   conda activate notesai
-   ```
-5. Verify key tools were installed:
-   ```bash
-   python --version
-   node --version
-   pip --version
-   ```
-6. (If dependencies change later) update the same environment:
-   ```bash
-   conda env update -f environment.yml --prune
-   ```
-7. (Optional) remove and recreate environment cleanly:
-   ```bash
-   conda deactivate
-   conda env remove -n notesai
-   conda env create -f environment.yml
-   conda activate notesai
-   ```
+1. Install Anaconda or Miniconda.
+2. `conda env create -f environment.yml`
+3. `conda activate notesai`
 
 ## Backend
 ```bash
@@ -54,13 +24,31 @@ npm install
 npm run dev
 ```
 
-## API highlights
-- `POST /notes` text note CRUD create
-- `POST /notes/upload/image` image note upload + AI description
-- `POST /notes/upload/voice` voice note upload + transcription
-- `GET /notes/search?q=...` semantic search
-- `GET /chat?q=...` ask questions across notes context
+## Voice Notes
+- Record directly in Note Editor (`Idle`, `Recording`, `Paused`, `Processing`, `Saved`, `Error` states).
+- Save audio attachments via `POST /api/notes/{note_id}/voice-notes`.
+- Supported audio upload types: `webm`, `wav`, `mp3`, `m4a`.
+- Stored locally under `backend/uploads/audio/`.
 
-## Notes
-- `app/services/ai.py` contains async placeholders to swap with OpenAI GPT-4o/Whisper calls.
-- `app/services/vector_store.py` uses an in-memory adapter; replace with ChromaDB/FAISS persistence for production.
+## Image-to-Text OCR
+- Upload image attachments (`png`, `jpg`, `jpeg`, `webp`) with thumbnail previews.
+- Extract text from one image: `POST /api/attachments/{attachment_id}/extract-text`.
+- Extract text from all images on note: `POST /api/notes/{note_id}/extract-text-from-images`.
+- Stored locally under `backend/uploads/images/`.
+
+## Transcription
+- Single audio: `POST /api/attachments/{attachment_id}/transcribe`.
+- All audio for note: `POST /api/notes/{note_id}/transcribe-voice-notes`.
+- If `OPENAI_API_KEY` is missing, responses are friendly fallback messages (app still fully usable).
+
+## Upload storage and static serving
+- `backend/uploads/audio/` exposed at `/uploads/audio/`
+- `backend/uploads/images/` exposed at `/uploads/images/`
+- `backend/uploads/files/` exposed at `/uploads/files/`
+
+## Optional env
+- `OPENAI_API_KEY` (optional). Never hardcode this key.
+
+## Local-only limitations
+- Without OpenAI configured, transcription/OCR return `not_configured` mock responses.
+- Voice recording, playback, image upload, and attachment management continue working locally.
