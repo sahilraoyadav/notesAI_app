@@ -1,31 +1,75 @@
 import './index.css';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import axios from 'axios';
 
 const API = 'http://localhost:8000';
 
 function App(){
-  const [notes,setNotes]=useState([]); const [title,setTitle]=useState(''); const [content,setContent]=useState(''); const [chatQ,setChatQ]=useState(''); const [chatA,setChatA]=useState('');
-  const load=async()=>setNotes((await axios.get(`${API}/notes`)).data);
+  const [notes,setNotes]=useState([]);
+  const [activeId,setActiveId]=useState(null);
+  const [filter,setFilter]=useState('all');
+  const [chatQ,setChatQ]=useState('');
+  const [chatA,setChatA]=useState('');
+
+  const load=async()=>{
+    const data=(await axios.get(`${API}/notes`)).data;
+    setNotes(data);
+    if(data.length && !activeId) setActiveId(data[0].id);
+  };
+
   useEffect(()=>{load();},[]);
-  const create=async()=>{await axios.post(`${API}/notes`,{title,content,note_type:'text',status:'todo'});setTitle('');setContent('');load();};
-  const chat=async()=>setChatA((await axios.get(`${API}/chat`,{params:{q:chatQ}})).data.answer);
-  const cols=['todo','doing','done'];
-  return <div className='p-6 grid gap-6'>
-    <h1 className='text-2xl font-bold'>NotesAI</h1>
-    <div className='grid gap-2 max-w-xl'>
-      <input className='text-black p-2 rounded' placeholder='Title' value={title} onChange={e=>setTitle(e.target.value)} />
-      <textarea className='text-black p-2 rounded' placeholder='Content or reminder phrase' value={content} onChange={e=>setContent(e.target.value)} />
-      <button className='bg-indigo-600 px-4 py-2 rounded' onClick={create}>Add Note</button>
-    </div>
-    <div className='grid grid-cols-3 gap-4'>{cols.map(c=><div key={c} className='bg-slate-900 rounded p-3'><h2 className='font-semibold capitalize'>{c}</h2>{notes.filter(n=>n.status===c).map(n=><div key={n.id} className='my-2 border border-slate-700 rounded p-2'><b>{n.title}</b><p>{n.content}</p><pre className='text-xs text-slate-300'>{n.ai_summary}</pre></div>)}</div>)}</div>
-    <div className='grid gap-2'>
-      <h2 className='font-semibold'>Chat with your notes</h2>
-      <input className='text-black p-2 rounded max-w-xl' value={chatQ} onChange={e=>setChatQ(e.target.value)} placeholder='Ask a question' />
-      <button className='bg-emerald-700 px-4 py-2 rounded w-fit' onClick={chat}>Ask</button>
-      <p className='whitespace-pre-wrap'>{chatA}</p>
-    </div>
+
+  const active = useMemo(()=>notes.find(n=>n.id===activeId),[notes,activeId]);
+  const filtered = useMemo(()=>filter==='all'?notes:notes.filter(n=>n.status===filter),[notes,filter]);
+
+  const create=async()=>{
+    const created=(await axios.post(`${API}/notes`,{title:'Untitled note',content:'',note_type:'text',status:'todo'})).data;
+    await load();
+    setActiveId(created.id);
+  };
+
+  const save=async(patch)=>{
+    if(!active) return;
+    await axios.put(`${API}/notes/${active.id}`, patch);
+    await load();
+  };
+
+  const chat=async()=>setChatA((await axios.get(`${API}/notes/chat`,{params:{q:chatQ,use_local_llm:true}})).data.answer);
+
+  return <div className='app-shell'>
+    <aside className='sidebar'>
+      <div className='sidebar-top'>
+        <h1>NotesAI</h1>
+        <button onClick={create}>+ New</button>
+      </div>
+      <select value={filter} onChange={e=>setFilter(e.target.value)}>
+        <option value='all'>All notes</option><option value='todo'>Todo</option><option value='doing'>Doing</option><option value='done'>Done</option>
+      </select>
+      <div className='note-list'>
+      {filtered.map(n=><div key={n.id} onClick={()=>setActiveId(n.id)} className={`note-row ${activeId===n.id?'active':''}`}>
+        <strong>{n.title}</strong><span>{(n.content||'').slice(0,65)}</span>
+      </div>)}
+      </div>
+    </aside>
+
+    <main className='editor'>
+      {active ? <>
+        <input className='title' value={active.title} onChange={e=>setNotes(notes.map(n=>n.id===active.id?{...n,title:e.target.value}:n))} onBlur={()=>save({title:active.title})} />
+        <textarea className='content' value={active.content||''} onChange={e=>setNotes(notes.map(n=>n.id===active.id?{...n,content:e.target.value}:n))} onBlur={()=>save({content:active.content})} placeholder='Start writing...' />
+        <div className='meta'>
+          <select value={active.status} onChange={e=>save({status:e.target.value})}><option value='todo'>Todo</option><option value='doing'>Doing</option><option value='done'>Done</option></select>
+          <pre>{active.ai_summary||'No summary yet.'}</pre>
+        </div>
+      </> : <p className='empty'>Create or select a note.</p>}
+    </main>
+
+    <section className='chat'>
+      <h2>Ask Local LLM</h2>
+      <textarea value={chatQ} onChange={e=>setChatQ(e.target.value)} placeholder='Ask about your notes...' />
+      <button onClick={chat}>Ask</button>
+      <p>{chatA}</p>
+    </section>
   </div>
 }
 
